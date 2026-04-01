@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+
+# FastAPI / tooling
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+alembic/versions/__pycache__/
+
+# Environment
+.env
+.env.local
+
+# Node / Vite
+node_modules/
+dist/
+.vite/
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Logs
+*.log
