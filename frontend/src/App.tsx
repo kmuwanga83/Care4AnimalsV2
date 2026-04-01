@@ -1,12 +1,59 @@
-const topics = [
-  "Disease Management",
-  "Vaccination",
-  "Animal Welfare",
-  "Feeding & Nutrition",
-  "Transport & Handling",
-];
+import { useEffect, useState } from "react";
+import { fetchLanguages, fetchTopics, fetchLessons } from "./api";
+
+type Language = {
+  code: string;
+  name: string;
+};
+
+type Topic = {
+  id: number;
+  slug: string;
+  title: string;
+};
+
+type Lesson = {
+  id: number;
+  slug: string;
+  title: string;
+  language: string;
+  body: string;
+  sms_part_count: number;
+};
 
 export default function App() {
+  const [languages, setLanguages] = useState<Language[]>([]);
+  const [topics, setTopics] = useState<Topic[]>([]);
+  const [lessons, setLessons] = useState<Lesson[]>([]);
+  const [selectedLanguage, setSelectedLanguage] = useState("en");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    async function loadInitialData() {
+      try {
+        setLoading(true);
+        setError("");
+
+        const [languageData, topicData, lessonData] = await Promise.all([
+          fetchLanguages(),
+          fetchTopics(),
+          fetchLessons(selectedLanguage),
+        ]);
+
+        setLanguages(languageData);
+        setTopics(topicData);
+        setLessons(lessonData);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to load data");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadInitialData();
+  }, [selectedLanguage]);
+
   return (
     <div className="shell">
       <header className="hero">
@@ -14,29 +61,47 @@ export default function App() {
         <p>Bite-sized animal wellness knowledge for farmers.</p>
       </header>
 
-      <section className="card">
-        <h2>Select language</h2>
-        <div className="chips">
-          <button>English</button>
-          <button>Luganda</button>
-          <button>Swahili</button>
-        </div>
-      </section>
+      {loading && <section className="card"><p>Loading...</p></section>}
+      {error && <section className="card"><p>{error}</p></section>}
 
-      <section className="card">
-        <h2>Topics</h2>
-        <ul className="topicList">
-          {topics.map((topic) => (
-            <li key={topic}>{topic}</li>
-          ))}
-        </ul>
-      </section>
+      {!loading && !error && (
+        <>
+          <section className="card">
+            <h2>Select language</h2>
+            <div className="chips">
+              {languages.map((language) => (
+                <button
+                  key={language.code}
+                  onClick={() => setSelectedLanguage(language.code)}
+                >
+                  {language.name}
+                </button>
+              ))}
+            </div>
+            <p>Current language: {selectedLanguage}</p>
+          </section>
 
-      <section className="card">
-        <h2>Sample lesson</h2>
-        <h3>Recognising Sick Animals</h3>
-        <p>Check appetite, breathing, wounds, walking, and body condition every day.</p>
-      </section>
+          <section className="card">
+            <h2>Topics</h2>
+            <ul className="topicList">
+              {topics.map((topic) => (
+                <li key={topic.id}>{topic.title}</li>
+              ))}
+            </ul>
+          </section>
+
+          <section className="card">
+            <h2>Lessons</h2>
+            {lessons.map((lesson) => (
+              <div key={lesson.id} style={{ marginBottom: "16px" }}>
+                <h3>{lesson.title}</h3>
+                <p>{lesson.body}</p>
+                <small>SMS parts: {lesson.sms_part_count}</small>
+              </div>
+            ))}
+          </section>
+        </>
+      )}
     </div>
   );
 }
