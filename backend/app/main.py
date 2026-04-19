@@ -4,7 +4,7 @@ from .config import settings
 from .routers.health import router as health_router
 from .routers.content import router as content_router
 from .routers.sms import router as sms_router
-from .routers import analytics
+from .routers import analytics, lessons # Added lessons here
 
 app = FastAPI(title=settings.app_name)
 
@@ -27,3 +27,4 @@ app.include_router(health_router)
 app.include_router(content_router)
 app.include_router(sms_router)
 app.include_router(analytics.router)
+app.include_router(lessons.router) # Registered the lessons router

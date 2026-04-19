@@ -2,9 +2,20 @@ from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional, List
 
-# --- SMS Schemas (RESTORED) ---
+# --- SMS Schemas ---
+# For Phase 2: Handles the logic of parsing incoming messages
+class SMSRequest(BaseModel):
+    sender: str   # The phone number (e.g., "256700000000")
+    message: str  # The keyword or content (e.g., "L91")
+
+class SMSResponse(BaseModel):
+    recipient: str
+    message: str
+    language_detected: str
+    status: str = "success"
+
+# Legacy/Webhook Schema (Keep for future external integration)
 class SmsWebhookIn(BaseModel):
-    # Adjust these fields if your SMS provider sends different data
     from_number: str
     to_number: str
     body: str
@@ -25,10 +36,31 @@ class Analytics(AnalyticsBase):
     class Config:
         from_attributes = True
 
-# --- Topic/Lesson Schemas (Optional, but good to have) ---
+# --- Lesson Schemas ---
+class LessonBase(BaseModel):
+    code: str
+    title: str
+    content: str
+    language: str
+    theme: Optional[str] = None
+    sms_text: Optional[str] = None
+
+class LessonCreate(LessonBase):
+    pass
+
+class LessonResponse(LessonBase):
+    id: int
+    
+    class Config:
+        from_attributes = True
+
+# --- Topic Schemas ---
 class TopicBase(BaseModel):
     title: str
 
-class LessonBase(BaseModel):
-    title: str
-    topic_id: int
+class TopicResponse(TopicBase):
+    id: int
+    lessons: List[LessonResponse] = []
+
+    class Config:
+        from_attributes = True
