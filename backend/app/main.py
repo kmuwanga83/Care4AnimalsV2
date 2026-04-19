@@ -8,9 +8,16 @@ from .routers import analytics
 
 app = FastAPI(title=settings.app_name)
 
+# Professional CORS implementation
+origins = [
+    settings.frontend_url,      # From your .env (e.g., http://localhost:5173)
+    "http://localhost:5173",    # Local Vite dev server
+    "http://127.0.0.1:5173",    # Local loopback
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.frontend_url, "*"],
+    allow_origins=origins, 
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
