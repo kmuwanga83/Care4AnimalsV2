@@ -1,40 +1,32 @@
-
-
 services:
   db:
     image: postgres:16
     environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
       POSTGRES_DB: care4animals
-      POSTGRES_USER: care4animals
-      POSTGRES_PASSWORD: care4animals
     ports:
       - "5432:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
 
   backend:
     build: ./backend
-    restart: always
-    environment:
-      - DATABASE_URL=postgresql://care4animals:care4animals@db:5432/care4animals
-    env_file:
-      - ./backend/.env
-    ports:
-      - "8000:8000"
-    depends_on:
-      - db
     volumes:
       - ./backend:/app
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://user:password@db:5432/care4animals
+    depends_on:
+      - db
 
   frontend:
     build: ./frontend
-    ports:
-      - "5173:5173"
     volumes:
       - ./frontend:/app
-      - /app/node_modules # Prevents local node_modules from overwriting container ones
+      - /app/node_modules
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:8000
     depends_on:
       - backend
-
-volumes:
-  pgdata:
