@@ -1,21 +1,35 @@
-from sqlalchemy import String, ForeignKey, Text
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-from .db import Base
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
+from sqlalchemy.sql import func
+from .database import Base  # <--- THIS IS THE MISSING PIECE
 
-class Topic(Base):
-    __tablename__ = "topics"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    slug: Mapped[str] = mapped_column(String(100), unique=True, index=True)
-    title: Mapped[str] = mapped_column(String(255))
-    description: Mapped[str | None] = mapped_column(Text(), nullable=True)
+class UserProfile(Base):
+    __tablename__ = "user_profiles"
+
+    id = Column(Integer, primary_key=True, index=True)
+    phone_number = Column(String, unique=True, index=True)
+    preferred_language = Column(String, default="en")
+    last_interaction = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 class Lesson(Base):
     __tablename__ = "lessons"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    topic_id: Mapped[int] = mapped_column(ForeignKey("topics.id"))
-    slug: Mapped[str] = mapped_column(String(100), unique=True, index=True)
-    title: Mapped[str] = mapped_column(String(255))
-    language: Mapped[str] = mapped_column(String(20), index=True)
-    body: Mapped[str] = mapped_column(Text())
-    sms_part_count: Mapped[int] = mapped_column(default=1)
-    topic: Mapped[Topic] = relationship()
+    id = Column(Integer, primary_key=True, index=True)
+    code = Column(String, index=True)
+    title = Column(String)
+    content = Column(Text)
+    language = Column(String, index=True)
+    theme = Column(String, nullable=True)
+    sms_text = Column(String, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+# ... Keep your Analytics and other models below ...
+# backend/app/models.py
+
+class Analytics(Base):
+    __tablename__ = "analytics"
+
+    id = Column(Integer, primary_key=True, index=True)
+    event_type = Column(String)  # e.g., 'lesson_request'
+    metadata_json = Column(Text) # To store JSON data
+    timestamp = Column(DateTime(timezone=True), server_default=func.now())
+
+# ... keep UserProfile and Lesson models below ...

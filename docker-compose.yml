@@ -1,15 +1,32 @@
-version: '3.9'
 services:
   db:
     image: postgres:16
     environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
       POSTGRES_DB: care4animals
-      POSTGRES_USER: care4animals
-      POSTGRES_PASSWORD: care4animals
     ports:
       - "5432:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
 
-volumes:
-  pgdata:
+  backend:
+    build: ./backend
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://user:password@db:5432/care4animals
+    depends_on:
+      - db
+
+  frontend:
+    build: ./frontend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    depends_on:
+      - backend
