@@ -7,14 +7,22 @@ router = APIRouter()
 
 @router.get("/summary")
 def get_analytics_summary(db: Session = Depends(database.get_db)):
-    # Query the 'lessons' table for the 136-136-136 split
+    # 1. Achievement: Query the 'lessons' table for the language split (EN, LG, SW)
     curriculum_stats = db.query(
         models.Lesson.language, 
         func.count(models.Lesson.id)
     ).group_by(models.Lesson.language).all()
 
-    # Transform list of tuples into a dictionary
+    # 2. Achievement: Query the 'lessons' table for the Topic distribution
+    # This identifies the focus areas like 'Vaccination', 'Safety', etc.
+    topic_query = db.query(
+        models.Lesson.topic, 
+        func.count(models.Lesson.id)
+    ).group_by(models.Lesson.topic).all()
+
+    # Transform list of tuples into dictionaries
     stats_dict = {lang: count for lang, count in curriculum_stats}
+    topic_dict = {topic: count for topic, count in topic_query}
 
     return {
         "metrics": {
@@ -23,6 +31,7 @@ def get_analytics_summary(db: Session = Depends(database.get_db)):
             "lesson_requests": 0
         },
         "language_stats": stats_dict,
+        "topic_stats": topic_dict,  # <-- Milestone 3: Now properly exposed
         "event_breakdown": {},
         "trends": []
     }

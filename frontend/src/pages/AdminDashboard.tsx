@@ -1,107 +1,130 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { Activity, BookOpen, Globe, ShieldCheck } from 'lucide-react';
+import { Activity, BookOpen, Globe, Filter, ListTree } from 'lucide-react';
 
 const AdminDashboard = () => {
-  const [data, setData] = useState([]);
+  const [rawStats, setRawStats] = useState<any>(null);
+  const [langChartData, setLangChartData] = useState<any[]>([]);
+  const [themeChartData, setThemeChartData] = useState<any[]>([]);
+  const [selectedLang, setSelectedLang] = useState('ALL');
   const [isOnline, setIsOnline] = useState(false);
 
-  // Constants for branding
   const NAVY = "#2E5B96";
   const EMERALD = "#4CAF50";
+  const AMBER = "#F59E0B";
 
   useEffect(() => {
-    // Fetch counts from your backend summary endpoint
     const fetchStats = async () => {
       try {
-        const response = await fetch('http://localhost:8000/api/v1/lessons/summary');
+        const response = await fetch('http://localhost:8000/analytics/summary');
         const result = await response.json();
+        setRawStats(result);
         
-        // Transform API data for Recharts
-        // Expected result: { "en": 136, "lg": 136, "sw": 136 }
-        const chartMapped = Object.keys(result).map(key => ({
+        // Map Language Data
+        setLangChartData(Object.keys(result.language_stats).map(key => ({
           name: key.toUpperCase(),
-          value: result[key]
-        }));
+          value: result.language_stats[key]
+        })));
+
+        // Map Theme Data (Sorted by value for better visualization)
+        const themes = Object.keys(result.theme_stats).map(key => ({
+          name: key,
+          value: result.theme_stats[key]
+        })).sort((a, b) => b.value - a.value);
         
-        setData(chartMapped);
+        setThemeChartData(themes);
         setIsOnline(true);
       } catch (error) {
         console.error("Backend unreachable", error);
         setIsOnline(false);
       }
     };
-
     fetchStats();
   }, []);
 
+  const handleFilterChange = (lang: string) => {
+    setSelectedLang(lang);
+    if (!rawStats) return;
+
+    if (lang === 'ALL') {
+      setLangChartData(Object.keys(rawStats.language_stats).map(k => ({ name: k.toUpperCase(), value: rawStats.language_stats[k] })));
+    } else {
+      setLangChartData([{ name: lang, value: rawStats.language_stats[lang.toLowerCase()] }]);
+    }
+  };
+
+  if (!rawStats && isOnline) return <div className="p-10 text-center font-bold">Loading Bugema Analytics...</div>;
+
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-8">
-      {/* HEADER WITH LOGOS */}
-      <header className="flex justify-between items-center mb-8 bg-white p-4 rounded-xl shadow-sm border-b-4 border-[#4CAF50]">
+      {/* HEADER SECTION (Same as before) */}
+      <header className="flex flex-col md:flex-row justify-between items-center mb-8 bg-white p-4 rounded-xl shadow-sm border-b-4 border-[#4CAF50] gap-4">
         <div className="flex items-center gap-3">
-          <img src="/bugema_logo.png" alt="Bugema University" className="h-12 w-auto" />
+          <img src="/bugema_logo.png" alt="Bugema" className="h-10 w-auto" />
           <div className="h-8 w-px bg-gray-200 mx-2" />
-          <img src="/wts_logo.png" alt="WTS" className="h-10 w-auto" />
+          <img src="/wts_logo.png" alt="WTS" className="h-8 w-auto" />
         </div>
-
-        <div className="flex items-center gap-4">
-          <div className="text-right hidden md:block">
-            <p className="text-xs font-bold text-gray-500 uppercase">System Pulse</p>
-            <p className={`text-sm font-medium ${isOnline ? 'text-emerald-600' : 'text-red-500'}`}>
-              {isOnline ? 'BACKEND ONLINE' : 'DISCONNECTED'}
-            </p>
-          </div>
-          <div className={`h-3 w-3 rounded-full ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
+        <div className="flex items-center gap-2 bg-gray-50 p-1.5 rounded-lg border border-gray-100">
+          <Filter size={16} className="text-gray-400 ml-2" />
+          {['ALL', 'EN', 'LG', 'SW'].map((l) => (
+            <button key={l} onClick={() => handleFilterChange(l)} className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${selectedLang === l ? 'bg-white text-[#2E5B96] shadow-sm border border-gray-200' : 'text-gray-500 hover:bg-gray-100'}`}>{l}</button>
+          ))}
         </div>
       </header>
 
-      {/* STAT CARDS */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="bg-white p-6 rounded-2xl shadow-sm border-l-8 border-[#2E5B96]">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-blue-50 rounded-lg text-[#2E5B96]"><BookOpen /></div>
-            <div>
-              <p className="text-sm text-gray-500 font-bold">TOTAL LESSONS</p>
-              <p className="text-3xl font-black text-gray-800">408</p>
-            </div>
-          </div>
-        </div>
-        
-        <div className="bg-white p-6 rounded-2xl shadow-sm border-l-8 border-[#4CAF50]">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-green-50 rounded-lg text-[#4CAF50]"><Globe /></div>
-            <div>
-              <p className="text-sm text-gray-500 font-bold">LANGUAGES</p>
-              <p className="text-3xl font-black text-gray-800">3</p>
-            </div>
+      {/* TOP ROW: LANGUAGE CHART & STATS */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+        <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm">
+          <h3 className="text-lg font-bold mb-6 text-[#2E5B96] flex items-center gap-2"><Globe size={20}/> Language Distribution</h3>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={langChartData}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} />
+                <YAxis axisLine={false} tickLine={false} />
+                <Tooltip cursor={{fill: '#f9fafb'}} />
+                <Bar dataKey="value" radius={[4, 4, 0, 0]} barSize={50}>
+                  {langChartData.map((e, i) => <Cell key={i} fill={e.name === 'LG' ? EMERALD : e.name === 'SW' ? AMBER : NAVY} />)}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl shadow-sm border-l-8 border-yellow-500">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-yellow-50 rounded-lg text-yellow-600"><Activity /></div>
-            <div>
-              <p className="text-sm text-gray-500 font-bold">RECOVERY STATUS</p>
-              <p className="text-3xl font-black text-gray-800">100%</p>
+        <div className="flex flex-col gap-4">
+            <div className="bg-white p-6 rounded-2xl shadow-sm border-l-8 border-[#2E5B96]">
+                <p className="text-xs text-gray-500 font-bold uppercase">Total Lessons</p>
+                <p className="text-4xl font-black text-gray-800">{rawStats?.metrics.total_lessons}</p>
             </div>
-          </div>
+            <div className="bg-white p-6 rounded-2xl shadow-sm border-l-8 border-[#4CAF50]">
+                <p className="text-xs text-gray-500 font-bold uppercase">Active Themes</p>
+                <p className="text-4xl font-black text-gray-800">{Object.keys(rawStats?.theme_stats || {}).length}</p>
+            </div>
         </div>
       </div>
 
-      {/* CHART SECTION */}
-      <div className="bg-white p-6 rounded-2xl shadow-sm">
-        <h3 className="text-xl font-bold mb-6 text-[#2E5B96]">Curriculum Distribution by Language</h3>
-        <div className="h-80 w-full">
+      {/* BOTTOM ROW: THEME DISTRIBUTION (New!) */}
+      <div className="bg-white p-8 rounded-2xl shadow-sm">
+        <h3 className="text-xl font-black text-[#2E5B96] mb-8 flex items-center gap-2">
+            <ListTree size={24} /> Curriculum Coverage by Theme
+        </h3>
+        <div className="h-[500px] w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="name" axisLine={false} tickLine={false} />
-              <YAxis axisLine={false} tickLine={false} />
-              <Tooltip cursor={{fill: '#f3f4f6'}} />
-              <Bar dataKey="value" radius={[4, 4, 0, 0]} barSize={60}>
-                {data.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={index % 2 === 0 ? NAVY : EMERALD} />
+            <BarChart data={themeChartData} layout="vertical" margin={{ left: 150 }}>
+              <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f0f0f0" />
+              <XAxis type="number" hide />
+              <YAxis 
+                type="category" 
+                dataKey="name" 
+                width={140}
+                axisLine={false} 
+                tickLine={false} 
+                tick={{fill: '#4b5563', fontSize: 11, fontWeight: 600}}
+              />
+              <Tooltip cursor={{fill: '#f9fafb'}} />
+              <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={20}>
+                {themeChartData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={index % 2 === 0 ? NAVY : "#94a3b8"} />
                 ))}
               </Bar>
             </BarChart>
