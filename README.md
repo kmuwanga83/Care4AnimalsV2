@@ -51,7 +51,7 @@ For detailed technical documentation, see:
 ### One-Command Bootstrap
 This command starts all services, seeds multilingual lessons, and publishes them automatically:
 ```bash
-./scripts/bootstrap_local_lessons.sh
+./start.sh
 ```
 
 **Local Endpoints:**
