@@ -10,7 +10,7 @@ from .api import analytics, lessons
 from .database import engine
 from . import models
 
-# 1. Initialize the ONLY FastAPI instance
+# 1. Initialize the FastAPI instance
 app = FastAPI(
     title=settings.app_name,
     version="2.0.0"
@@ -20,10 +20,13 @@ app = FastAPI(
 models.Base.metadata.create_all(bind=engine)
 
 # 3. Configure CORS for the React Dashboard
+# This allows your port 5173/5174 to actually "see" the data
 origins = [
-    settings.frontend_url,
+    getattr(settings, "frontend_url", "http://localhost:5173"),
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    "http://localhost:5174",
+    "http://127.0.0.1:5174",
 ]
 
 app.add_middleware(
@@ -34,25 +37,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 4. Register Routers to the app
-# Health check
+# 4. Register Routers
 app.include_router(health_router)
-
-# Content & SMS
 app.include_router(content_router)
 app.include_router(sms_router)
 
-# Analytics (The path for your Dashboard UI)
+# This is the endpoint your Dashboard.jsx is calling: /analytics/summary
 app.include_router(analytics.router, prefix="/analytics", tags=["analytics"])
-
-# Lessons (The path for your Seeding Script)
-# This registers the POST /lessons/ endpoint from routers/lessons.py
 app.include_router(lessons_router)
-
-# Optional: Versioned API path for lessons
 app.include_router(lessons.router, prefix="/api/v1/lessons", tags=["lessons"])
 
-# 5. Root Endpoint with institutional branding
+# 5. Root Endpoint
 @app.get("/")
 async def root():
     return {

@@ -1,128 +1,173 @@
-import React, { useEffect, useState } from 'react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { Users, Activity, Globe, MessageSquare, ArrowRight, ShieldCheck } from 'lucide-react';
-
-const COLORS = ['#2E5B96', '#4CAF50', '#F2994A', '#EB5757'];
+import React, { useState, useEffect } from 'react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, CartesianGrid } from 'recharts';
+import { LayoutDashboard, Users, MessageSquare, ShieldCheck, BookOpen, Activity } from 'lucide-react';
 
 const Dashboard = () => {
   const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    fetch('http://localhost:8000/analytics/summary')
-      .then(res => res.json())
-      .then(json => setData(json))
-      .catch(err => console.error("Sync Error:", err));
+    const fetchData = async () => {
+      try {
+        // We add a cache-buster to ensure we get fresh data
+        const response = await fetch('http://127.0.0.1:8000/analytics/summary');
+        if (!response.ok) throw new Error('Backend unreachable');
+        
+        const json = await response.json();
+        console.log("Data received:", json); // This will show in your F12 Console
+        setData(json);
+      } catch (err) {
+        console.error("Connection error:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
   }, []);
 
-  if (!data) return <div className="min-h-screen flex items-center justify-center bg-[#F4F7FA] font-bold text-[#2E5B96]">Loading Care4Animals Analytics...</div>;
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-slate-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500 mx-auto"></div>
+          <p className="mt-4 text-slate-500 font-medium animate-pulse">Syncing Care4Animals Data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Formatting data for the charts based on your JSON structure
+  const langData = Object.entries(data?.language_stats || {}).map(([name, value]) => ({
+    name: name.toUpperCase(),
+    value
+  }));
+
+  const themeData = Object.entries(data?.theme_stats || {})
+    .map(([name, value]) => ({ name, value }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 8); // Showing top 8 themes for clarity
 
   return (
-    <div className="min-h-screen bg-[#F4F7FA] font-sans">
-      {/* 1. BRANDED HEADER (Matches Mobile UI) */}
-      <header className="bg-[#2E5B96] text-white px-8 py-6 shadow-lg">
-        <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <div className="flex items-center space-x-4">
-            <div className="bg-white p-2 rounded-full shadow-inner">
-               <img src="/bugema_logo.png" alt="Logo" className="h-10 w-auto" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-black tracking-tight">CARE4ANIMALS</h1>
-              <p className="text-xs font-medium opacity-80 uppercase tracking-[0.2em]">Management & Analytics Portal</p>
-            </div>
+    <div className="flex min-h-screen bg-slate-100 font-sans text-slate-900">
+      {/* SIDEBAR */}
+      <nav className="w-64 bg-slate-900 text-white p-6 hidden lg:flex flex-col sticky top-0 h-screen">
+        <div className="flex items-center gap-3 mb-10 border-b border-slate-800 pb-6">
+          <div className="bg-emerald-500 p-2 rounded-lg text-white shadow-lg shadow-emerald-500/20">
+            <LayoutDashboard size={20}/>
           </div>
-          <div className="flex items-center space-x-2 bg-white/10 px-4 py-2 rounded-xl border border-white/20">
-            <ShieldCheck size={18} className="text-green-400" />
-            <span className="text-sm font-bold uppercase">Admin Verified</span>
+          <span className="font-bold text-xl tracking-tight">Care4Animals</span>
+        </div>
+        
+        <div className="space-y-2 flex-1">
+          <div className="flex items-center gap-3 text-emerald-400 font-bold bg-emerald-400/10 p-3 rounded-xl cursor-pointer">
+            <Activity size={18}/> Dashboard
+          </div>
+          <div className="flex items-center gap-3 text-slate-400 hover:text-white hover:bg-slate-800 p-3 rounded-xl transition-all cursor-pointer">
+            <Users size={18}/> Farmers
+          </div>
+          <div className="flex items-center gap-3 text-slate-400 hover:text-white hover:bg-slate-800 p-3 rounded-xl transition-all cursor-pointer">
+            <MessageSquare size={18}/> SMS Traffic
           </div>
         </div>
-      </header>
 
-      <main className="p-8 max-w-7xl mx-auto -mt-8">
-        {/* 2. INTUITIVE COMMAND CARDS (Metaphor-based UI) */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
-          <ActionCard title="SMS Traffic" value={data.metrics.total_interactions} icon={<MessageSquare />} color="blue" />
-          <ActionCard title="Registered Farmers" value={data.metrics.active_users} icon={<Users />} color="green" />
-          <ActionCard title="Lesson Requests" value={data.metrics.lesson_requests} icon={<Activity />} color="orange" />
-          <ActionCard title="Languages" value={Object.keys(data.language_stats).length} icon={<Globe />} color="red" />
+        <div className="mt-auto pt-6 border-t border-slate-800 flex items-center gap-2 text-[10px] uppercase tracking-widest text-slate-500 font-bold">
+          <ShieldCheck size={14} className="text-emerald-500"/> Admin Verified
+        </div>
+      </nav>
+
+      {/* MAIN CONTENT AREA */}
+      <main className="flex-1 p-8 overflow-y-auto">
+        <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
+          <div>
+            <h1 className="text-3xl font-black text-slate-800 tracking-tight">Analytics Overview</h1>
+            <p className="text-slate-500 font-medium italic">Partnering with Bugema University & WTS Foundation</p>
+          </div>
+          
+          <div className="flex items-center gap-4 bg-white p-3 rounded-2xl shadow-sm border border-slate-200">
+             <div className="flex flex-col items-end px-2">
+               <span className="text-[10px] font-bold text-slate-400 leading-none mb-1 uppercase tracking-tighter">Verified Partner</span>
+               <span className="text-sm font-black text-slate-700">WTS Foundation</span>
+             </div>
+             <div className="h-8 w-px bg-slate-200" />
+             <div className="flex gap-2 h-10 items-center">
+                {/* Image fallbacks built in */}
+                <img src="/bugema_logo.png" alt="BU" className="h-full object-contain" onError={(e) => e.target.style.display='none'} />
+                <img src="/wts_logo.png" alt="WTS" className="h-8 object-contain" onError={(e) => e.target.style.display='none'} />
+             </div>
+          </div>
+        </header>
+
+        {/* METRIC CARDS */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+          <div className="bg-white p-6 rounded-3xl shadow-sm border-b-4 border-blue-500 hover:translate-y-[-4px] transition-transform">
+            <div className="flex justify-between items-start mb-4">
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Total Lessons</p>
+              <div className="p-2 bg-blue-50 text-blue-500 rounded-lg"><BookOpen size={16}/></div>
+            </div>
+            <p className="text-4xl font-black text-slate-800">{data?.metrics?.total_lessons || 0}</p>
+          </div>
+          
+          <div className="bg-white p-6 rounded-3xl shadow-sm border-b-4 border-emerald-500 hover:translate-y-[-4px] transition-transform">
+            <div className="flex justify-between items-start mb-4">
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Languages</p>
+              <div className="p-2 bg-emerald-50 text-emerald-500 rounded-lg"><ShieldCheck size={16}/></div>
+            </div>
+            <p className="text-4xl font-black text-slate-800">{langData.length}</p>
+          </div>
+
+          <div className="bg-white p-6 rounded-3xl shadow-sm border-b-4 border-amber-500 hover:translate-y-[-4px] transition-transform">
+            <div className="flex justify-between items-start mb-4">
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Active Users</p>
+              <div className="p-2 bg-amber-50 text-amber-500 rounded-lg"><Users size={16}/></div>
+            </div>
+            <p className="text-4xl font-black text-slate-800">{data?.metrics?.active_users || 0}</p>
+          </div>
         </div>
 
-        {/* 3. AESTHETIC ANALYTICS (Component-based Interface) */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2 bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-100">
-            <div className="bg-slate-50 px-8 py-4 border-b border-slate-100 flex justify-between items-center">
-              <h2 className="font-black text-slate-800 uppercase text-sm tracking-widest">Engagement Trends</h2>
-              <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-1 rounded-md font-bold">LIVE DATA</span>
-            </div>
-            <div className="p-8 h-[350px]">
+        {/* CHARTS SECTION */}
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+          <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-200">
+            <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
+              <span className="w-2 h-6 bg-blue-500 rounded-full"></span>
+              Curriculum Engagement
+            </h3>
+            <div className="h-80">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={data.trends.length > 0 ? data.trends : [{date: '---', count: 0}]}>
-                  <defs>
-                    <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#2E5B96" stopOpacity={0.2}/>
-                      <stop offset="95%" stopColor="#2E5B96" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                  <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fontSize: 12, fontWeight: 600, fill: '#64748B'}} />
-                  <YAxis axisLine={false} tickLine={false} tick={{fontSize: 12, fontWeight: 600, fill: '#64748B'}} />
-                  <Tooltip contentStyle={{borderRadius: '15px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)'}} />
-                  <Area type="monotone" dataKey="count" stroke="#2E5B96" strokeWidth={4} fillOpacity={1} fill="url(#colorCount)" />
-                </AreaChart>
+                <BarChart data={themeData} layout="vertical" margin={{ left: 20 }}>
+                  <XAxis type="number" hide />
+                  <YAxis dataKey="name" type="category" width={150} tick={{fontSize: 10, fill: '#64748b'}} axisLine={false} tickLine={false} />
+                  <Tooltip cursor={{fill: '#f8fafc'}} contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}} />
+                  <Bar dataKey="value" fill="#3b82f6" radius={[0, 4, 4, 0]} barSize={12} />
+                </BarChart>
               </ResponsiveContainer>
             </div>
           </div>
 
-          <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-100">
-            <div className="bg-slate-50 px-8 py-4 border-b border-slate-100">
-              <h2 className="font-black text-slate-800 uppercase text-sm tracking-widest">Language Split</h2>
-            </div>
-            <div className="p-8 h-[350px]">
+          <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-200">
+            <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
+              <span className="w-2 h-6 bg-emerald-500 rounded-full"></span>
+              Language Distribution
+            </h3>
+            <div className="h-80">
               <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie 
-                    data={Object.keys(data.language_stats).map(k => ({name: k.toUpperCase(), value: data.language_stats[k]}))} 
-                    innerRadius={70} outerRadius={100} paddingAngle={5} dataKey="value"
-                  >
-                    {COLORS.map((color, i) => <Cell key={i} fill={color} />)}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
+                <BarChart data={langData}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8'}} />
+                  <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8'}} />
+                  <Tooltip cursor={{fill: '#f8fafc'}} contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}} />
+                  <Bar dataKey="value" radius={[6, 6, 0, 0]} barSize={60}>
+                    {langData.map((entry, index) => (
+                      <Cell key={index} fill={entry.name === 'LG' ? '#10b981' : entry.name === 'SW' ? '#f59e0b' : '#3b82f6'} />
+                    ))}
+                  </Bar>
+                </BarChart>
               </ResponsiveContainer>
-              <div className="mt-4 flex justify-center space-x-4">
-                 {/* Feedback: Legend for easy learning */}
-                 <div className="flex items-center space-x-1"><div className="w-3 h-3 rounded-full bg-[#2E5B96]"/><span className="text-[10px] font-bold">EN</span></div>
-                 <div className="flex items-center space-x-1"><div className="w-3 h-3 rounded-full bg-[#4CAF50]"/><span className="text-[10px] font-bold">LG</span></div>
-                 <div className="flex items-center space-x-1"><div className="w-3 h-3 rounded-full bg-[#F2994A]"/><span className="text-[10px] font-bold">SW</span></div>
-              </div>
             </div>
           </div>
         </div>
       </main>
-    </div>
-  );
-};
-
-// Component-based card for Speed of Learning
-const ActionCard = ({ title, value, icon, color }) => {
-  const colorMap = {
-    blue: "bg-[#2E5B96]",
-    green: "bg-[#4CAF50]",
-    orange: "bg-[#F2994A]",
-    red: "bg-[#EB5757]"
-  };
-
-  return (
-    <div className={`${colorMap[color]} p-6 rounded-3xl shadow-lg text-white flex flex-col justify-between h-40 transition-transform hover:scale-[1.03] cursor-default`}>
-      <div className="flex justify-between items-start">
-        <div className="bg-white/20 p-2 rounded-xl backdrop-blur-sm">
-          {React.cloneElement(icon, { size: 24 })}
-        </div>
-        <ArrowRight size={16} className="opacity-40" />
-      </div>
-      <div>
-        <p className="text-sm font-bold opacity-80 uppercase tracking-tighter mb-1">{title}</p>
-        <p className="text-4xl font-black">{value}</p>
-      </div>
     </div>
   );
 };

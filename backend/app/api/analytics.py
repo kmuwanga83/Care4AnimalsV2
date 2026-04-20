@@ -7,14 +7,22 @@ router = APIRouter()
 
 @router.get("/summary")
 def get_analytics_summary(db: Session = Depends(database.get_db)):
-    # Query the 'lessons' table for the 136-136-136 split
+    # 1. Language Distribution
     curriculum_stats = db.query(
         models.Lesson.language, 
         func.count(models.Lesson.id)
     ).group_by(models.Lesson.language).all()
 
-    # Transform list of tuples into a dictionary
+    # 2. Theme Distribution (Corrected from 'topic' to 'theme')
+    theme_query = db.query(
+        models.Lesson.theme, 
+        func.count(models.Lesson.id)
+    ).group_by(models.Lesson.theme).all()
+
+    # Transform results into clean dictionaries
     stats_dict = {lang: count for lang, count in curriculum_stats}
+    # Filter out None values if any themes are empty
+    theme_dict = {theme if theme else "Uncategorized": count for theme, count in theme_query}
 
     return {
         "metrics": {
@@ -23,6 +31,7 @@ def get_analytics_summary(db: Session = Depends(database.get_db)):
             "lesson_requests": 0
         },
         "language_stats": stats_dict,
+        "theme_stats": theme_dict,  # Successfully mapped to the 'theme' column
         "event_breakdown": {},
         "trends": []
     }
