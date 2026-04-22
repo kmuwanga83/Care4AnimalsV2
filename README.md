@@ -76,6 +76,9 @@ This command starts all services, seeds multilingual lessons, and publishes them
 * **Line Endings:** We use `.gitattributes` to enforce **LF** line endings, ensuring consistency between Windows hosts and Linux containers.
 
 ---
+## 🤝 Contributing
+
+Please read our [Contributing Guidelines](CONTRIBUTING.md) before submitting a pull request.
 
 ## 🌍 Research Context
 This platform is a core component of research into **"Changing farmer behaviours towards good welfare for farm animals in Africa."** It delivers practical, culturally relevant knowledge to empower smallholder communities.
