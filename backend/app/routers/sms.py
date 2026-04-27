@@ -1,16 +1,26 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Form  # Added Form
 from sqlalchemy.orm import Session
 from .. import models, schemas
 from ..database import get_db
-from ..services.sms_service import send_and_log_sms  # <--- Import your service
+from ..services.sms_service import send_and_log_sms
 import json
 
 router = APIRouter(prefix="/sms", tags=["sms"])
 
-@router.post("/incoming") # Removed response_model temporarily for flexibility
-def handle_incoming_sms(payload: schemas.SMSRequest, db: Session = Depends(get_db)):
-    keyword = payload.message.strip().upper()
-    sender = payload.sender
+@router.post("/incoming")
+def handle_incoming_sms(
+    from_: str = Form(None, alias="from"),  # Africa's Talking uses 'from'
+    text: str = Form(None, alias="text"),  # Africa's Talking uses 'text'
+    db: Session = Depends(get_db)
+):
+    # Basic validation for the Form data
+    if not from_ or not text:
+        # If testing via Swagger (JSON), fallback to checking body
+        # but for production AT hits, we need these Form fields.
+        raise HTTPException(status_code=422, detail="Missing Form data (from/text)")
+
+    sender = from_
+    keyword = text.strip().upper()
 
     # 1. Manage User Profile (Get or Create)
     user = db.query(models.UserProfile).filter(models.UserProfile.phone_number == sender).first()
@@ -40,8 +50,7 @@ def handle_incoming_sms(payload: schemas.SMSRequest, db: Session = Depends(get_d
     if reply_message:
         db.commit()
         log_event(db, "language_change", {"sender": sender, "to": lang_detected})
-        # TRIGGER OUTBOUND SMS
-        send_and_log_sms(db, user.id, sender, reply_message)
+        sms_status = send_and_log_sms(db, user.id, sender, reply_message)
         return {"status": "success", "action": "language_change"}
 
     # 3. Lookup Lesson
@@ -65,7 +74,7 @@ def handle_incoming_sms(payload: schemas.SMSRequest, db: Session = Depends(get_d
         return {"status": "error", "message": "Keyword not found"}
 
     # Determine message content
-    final_text = lesson.sms_text or lesson.content
+    final_text = lesson.content
 
     # Log to Analytics
     log_event(db, "lesson_request", {
@@ -74,7 +83,7 @@ def handle_incoming_sms(payload: schemas.SMSRequest, db: Session = Depends(get_d
         "language": user.preferred_language
     })
 
-    # TRIGGER OUTBOUND SMS (Issue #10 Requirement)
+    # TRIGGER OUTBOUND SMS
     sms_status = send_and_log_sms(db, user.id, sender, final_text)
 
     return {
