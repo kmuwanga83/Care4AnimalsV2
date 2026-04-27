@@ -2,11 +2,12 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from .. import models, schemas
 from ..database import get_db
-import json # New: Required for metadata logging
+from ..services.sms_service import send_and_log_sms  # <--- Import your service
+import json
 
 router = APIRouter(prefix="/sms", tags=["sms"])
 
-@router.post("/incoming", response_model=schemas.SMSResponse)
+@router.post("/incoming") # Removed response_model temporarily for flexibility
 def handle_incoming_sms(payload: schemas.SMSRequest, db: Session = Depends(get_db)):
     keyword = payload.message.strip().upper()
     sender = payload.sender
@@ -20,23 +21,28 @@ def handle_incoming_sms(payload: schemas.SMSRequest, db: Session = Depends(get_d
         db.refresh(user)
 
     # 2. Handle Language Switch Commands
+    reply_message = ""
+    lang_detected = user.preferred_language
+
     if keyword in ["LG", "LUGANDA"]:
         user.preferred_language = "lg"
-        db.commit()
-        log_event(db, "language_change", {"sender": sender, "to": "lg"})
-        return {"recipient": sender, "message": "Okyusiddwa okukozesa Oluganda.", "language_detected": "lg"}
-    
-    if keyword in ["SW", "SWAHILI"]:
+        reply_message = "Okyusiddwa okukozesa Oluganda."
+        lang_detected = "lg"
+    elif keyword in ["SW", "SWAHILI"]:
         user.preferred_language = "sw"
-        db.commit()
-        log_event(db, "language_change", {"sender": sender, "to": "sw"})
-        return {"recipient": sender, "message": "Umebadilisha lugha kuwa Kiswahili.", "language_detected": "sw"}
-
-    if keyword in ["EN", "ENGLISH"]:
+        reply_message = "Umebadilisha lugha kuwa Kiswahili."
+        lang_detected = "sw"
+    elif keyword in ["EN", "ENGLISH"]:
         user.preferred_language = "en"
+        reply_message = "Language changed to English."
+        lang_detected = "en"
+
+    if reply_message:
         db.commit()
-        log_event(db, "language_change", {"sender": sender, "to": "en"})
-        return {"recipient": sender, "message": "Language changed to English.", "language_detected": "en"}
+        log_event(db, "language_change", {"sender": sender, "to": lang_detected})
+        # TRIGGER OUTBOUND SMS
+        send_and_log_sms(db, user.id, sender, reply_message)
+        return {"status": "success", "action": "language_change"}
 
     # 3. Lookup Lesson
     lesson = db.query(models.Lesson).filter(
@@ -44,34 +50,37 @@ def handle_incoming_sms(payload: schemas.SMSRequest, db: Session = Depends(get_d
         models.Lesson.language == user.preferred_language
     ).first()
 
-    # Fallback to English
+    # Fallback to English if not found in preferred language
     if not lesson:
         lesson = db.query(models.Lesson).filter(
             models.Lesson.code == keyword,
             models.Lesson.language == "en"
         ).first()
 
-    # 4. Final Processing & Logging
+    # 4. Final Processing & Trigger Outbound
     if not lesson:
+        error_msg = "Keyword not found. Text LG for Luganda, SW for Swahili, or EN for English."
         log_event(db, "keyword_error", {"sender": sender, "keyword": keyword})
-        return {
-            "recipient": sender, 
-            "message": "Keyword not found. Text LG for Luganda, SW for Swahili.", 
-            "language_detected": user.preferred_language,
-            "status": "error"
-        }
+        send_and_log_sms(db, user.id, sender, error_msg)
+        return {"status": "error", "message": "Keyword not found"}
 
-    # Log successful lesson request
+    # Determine message content
+    final_text = lesson.sms_text or lesson.content
+
+    # Log to Analytics
     log_event(db, "lesson_request", {
         "sender": sender, 
         "keyword": keyword, 
         "language": user.preferred_language
     })
 
+    # TRIGGER OUTBOUND SMS (Issue #10 Requirement)
+    sms_status = send_and_log_sms(db, user.id, sender, final_text)
+
     return {
         "recipient": sender,
-        "message": lesson.sms_text or lesson.content,
-        "language_detected": user.preferred_language
+        "status": sms_status.status,
+        "message_id": sms_status.provider_message_id
     }
 
 def log_event(db: Session, event_type: str, metadata: dict):

@@ -1,6 +1,7 @@
 from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
 from sqlalchemy.sql import func
-from .database import Base  # <--- THIS IS THE MISSING PIECE
+from sqlalchemy.orm import relationship
+from .database import Base
 
 class UserProfile(Base):
     __tablename__ = "user_profiles"
@@ -9,6 +10,9 @@ class UserProfile(Base):
     phone_number = Column(String, unique=True, index=True)
     preferred_language = Column(String, default="en")
     last_interaction = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    
+    # Relationship to track this user's SMS history
+    sms_history = relationship("SMSLog", back_populates="recipient")
 
 class Lesson(Base):
     __tablename__ = "lessons"
@@ -21,15 +25,36 @@ class Lesson(Base):
     sms_text = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
-# ... Keep your Analytics and other models below ...
-# backend/app/models.py
+class SMSLog(Base):
+    """
+    NEW: Tracks all outgoing SMS for Issue #10.
+    Meets Acceptance Criteria: 'Messages are logged in the database'
+    """
+    __tablename__ = "sms_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("user_profiles.id"))
+    phone_number = Column(String, index=True)
+    message_body = Column(Text)
+    
+    # Status can be: 'sent', 'delivered', 'failed', or 'retry_pending'
+    status = Column(String, default="pending")
+    
+    # Stores the unique ID returned by Africa's Talking/Twilio for tracking
+    provider_message_id = Column(String, nullable=True) 
+    
+    # Error message if the API call fails
+    error_log = Column(String, nullable=True)
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    recipient = relationship("UserProfile", back_populates="sms_history")
 
 class Analytics(Base):
     __tablename__ = "analytics"
 
     id = Column(Integer, primary_key=True, index=True)
-    event_type = Column(String)  # e.g., 'lesson_request'
+    event_type = Column(String)  # e.g., 'lesson_request', 'sms_sent'
     metadata_json = Column(Text) # To store JSON data
     timestamp = Column(DateTime(timezone=True), server_default=func.now())
-
-# ... keep UserProfile and Lesson models below ...

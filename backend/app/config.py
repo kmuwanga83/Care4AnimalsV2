@@ -2,12 +2,26 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     app_name: str = "CARE4ANIMALS API"
-    # Defaulting to localhost for Git Bash development
+    
+    # Database Configuration
     database_url: str = "postgresql+psycopg://care4animals:care4animals@localhost:5432/care4animals"
+    
+    # Frontend/CORS Configuration
     frontend_url: str = "http://localhost:5173"
+    
+    # SMS Gateway Configuration (Issue #10)
+    # These will be automatically populated from your .env file
+    at_username: str = "sandbox"  # Default to sandbox for testing
+    at_api_key: str = "change-me"
+    
+    # Other Integrations
     rapidpro_secret: str = "change-me"
     
-    # This tells Pydantic to look for a .env file, but we will ensure it's correct
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    # Pydantic configuration to load from .env
+    model_config = SettingsConfigDict(
+        env_file=".env", 
+        extra="ignore",
+        env_file_encoding='utf-8'
+    )
 
 settings = Settings()
