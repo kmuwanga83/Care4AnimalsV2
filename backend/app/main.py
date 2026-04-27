@@ -1,14 +1,15 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .config import settings
+from .database import engine
+from . import models
+
+# Import routers - ensuring we don't have duplicate registrations
 from .routers.health import router as health_router
 from .routers.content import router as content_router
 from .routers.sms import router as sms_router
 from .routers.analytics import router as analytics_router
 from .routers.lessons import router as lessons_router
-from .api import analytics, lessons
-from .database import engine
-from . import models
 
 # 1. Initialize the FastAPI instance
 app = FastAPI(
@@ -17,10 +18,10 @@ app = FastAPI(
 )
 
 # 2. Ensure Database Tables are created
+# This satisfies the requirement to verify and create the SMSLog schema
 models.Base.metadata.create_all(bind=engine)
 
 # 3. Configure CORS for the React Dashboard
-# This allows your port 5173/5174 to actually "see" the data
 origins = [
     getattr(settings, "frontend_url", "http://localhost:5173"),
     "http://localhost:5173",
@@ -38,19 +39,18 @@ app.add_middleware(
 )
 
 # 4. Register Routers
+# Note: Ensure prefixing is consistent so the frontend calls the right URL
 app.include_router(health_router)
 app.include_router(content_router)
-app.include_router(sms_router)
-
-# This is the endpoint your Dashboard.jsx is calling: /analytics/summary
-app.include_router(analytics.router, prefix="/analytics", tags=["analytics"])
-app.include_router(lessons_router)
-app.include_router(lessons.router, prefix="/api/v1/lessons", tags=["lessons"])
+app.include_router(sms_router) # Handles /sms/incoming and /sms/send-lesson
+app.include_router(analytics_router, prefix="/analytics", tags=["Analytics"])
+app.include_router(lessons_router, prefix="/api/v1/lessons", tags=["Lessons"])
 
 # 5. Root Endpoint
 @app.get("/")
 async def root():
     return {
+        "status": "online",
         "message": "Care4Animals API is live",
         "version": "2.0.0",
         "partners": ["Bugema University", "WTS Foundation"]
