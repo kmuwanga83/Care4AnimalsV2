@@ -8,6 +8,7 @@ from . import models
 from .routers.health import router as health_router
 from .routers.content import router as content_router
 from .routers.sms import router as sms_router
+from .routers.notifications import router as notifications_router
 from .routers.analytics import router as analytics_router
 from .routers.lessons import router as lessons_router
 
@@ -47,6 +48,7 @@ app.add_middleware(
 app.include_router(health_router)
 app.include_router(content_router)
 app.include_router(sms_router) 
+app.include_router(notifications_router)
 app.include_router(analytics_router, prefix="/analytics", tags=["Analytics"])
 app.include_router(lessons_router, prefix="/api/v1/lessons", tags=["Lessons"])
 
