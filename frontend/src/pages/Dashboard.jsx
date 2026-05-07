@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, CartesianGrid } from 'recharts';
 import { LayoutDashboard, Users, MessageSquare, ShieldCheck, BookOpen, Activity, AlertCircle, CheckCircle2 } from 'lucide-react';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
 const Dashboard = () => {
   const [data, setData] = useState(null);
   const [logs, setLogs] = useState([]); // New state for logs
@@ -10,14 +12,26 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [analyticsRes, logsRes] = await Promise.all([
-          fetch('http://127.0.0.1:8000/analytics/summary'),
-          fetch('http://127.0.0.1:8000/sms/logs')
+        const [analyticsRes, logsRes] = await Promise.allSettled([
+          fetch(`${API_BASE_URL}/analytics/summary`),
+          fetch(`${API_BASE_URL}/api/v1/sms/logs`)
         ]);
-        
-        const analyticsJson = await analyticsRes.json();
-        const logsJson = await logsRes.json();
-        
+
+        let analyticsJson = null;
+        let logsJson = [];
+
+        if (analyticsRes.status === 'fulfilled' && analyticsRes.value.ok) {
+          analyticsJson = await analyticsRes.value.json();
+        } else {
+          console.error('Failed to load analytics summary');
+        }
+
+        if (logsRes.status === 'fulfilled' && logsRes.value.ok) {
+          logsJson = await logsRes.value.json();
+        } else {
+          console.error('Failed to load SMS logs');
+        }
+
         setData(analyticsJson);
         setLogs(logsJson);
       } catch (err) {

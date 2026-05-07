@@ -39,6 +39,8 @@ if hasattr(settings, "frontend_url"):
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
+    # Allow Vite/docker network origins like http://172.21.0.4:5173.
+    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1|172\.\d+\.\d+\.\d+)(:\d+)?$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -50,7 +52,8 @@ app.include_router(content_router)
 app.include_router(sms_router) 
 app.include_router(notifications_router)
 app.include_router(analytics_router, prefix="/analytics", tags=["Analytics"])
-app.include_router(lessons_router, prefix="/api/v1/lessons", tags=["Lessons"])
+# Mount lessons under /api/v1/lessons (router already has /lessons prefix)
+app.include_router(lessons_router, prefix="/api/v1", tags=["Lessons"])
 
 # 5. Root Endpoint
 @app.get("/")

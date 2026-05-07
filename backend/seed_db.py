@@ -1,8 +1,11 @@
 import json
 import os
+import sys
 from app import models, database
 
 def seed_lessons():
+    # Ensure tables exist before trying to query/insert lessons.
+    models.Base.metadata.create_all(bind=database.engine)
     db = database.SessionLocal()
     seed_path = "seed"
     files = ["lessons_en.json", "lessons_lg.json", "lessons_sw.json"]
@@ -43,8 +46,12 @@ def seed_lessons():
     except Exception as e:
         print(f"❌ Error: {e}")
         db.rollback()
+        raise
     finally:
         db.close()
 
 if __name__ == "__main__":
-    seed_lessons()
+    try:
+        seed_lessons()
+    except Exception:
+        sys.exit(1)
