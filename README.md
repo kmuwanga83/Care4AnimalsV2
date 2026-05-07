@@ -76,6 +76,53 @@ This command starts all services, seeds multilingual lessons, and publishes them
 * **Line Endings:** We use `.gitattributes` to enforce **LF** line endings, ensuring consistency between Windows hosts and Linux containers.
 
 ---
+
+## 📲 Africa's Talking + Multi-Channel Notifications Setup
+
+Configure backend environment variables for production-safe notification delivery:
+
+```bash
+# Africa's Talking (sandbox by default)
+AT_USERNAME=sandbox
+AT_API_KEY=your_africas_talking_api_key
+AT_SENDER_ID=
+AT_WEBHOOK_TOKEN=strong-shared-secret
+# Optional: comma-separated IPs or CIDRs (only checked when AT_WEBHOOK_TOKEN is unset)
+AT_WEBHOOK_ALLOWED_IPS=
+SMS_MAX_RETRIES=3
+SMS_RETRY_BACKOFF_SECONDS=0.5
+
+# Email (SMTP)
+EMAIL_PROVIDER=smtp
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_USERNAME=your_smtp_user
+SMTP_PASSWORD=your_smtp_password
+SMTP_USE_TLS=true
+EMAIL_FROM=no-reply@care4animals.org
+```
+
+### SMS webhook endpoint
+
+- Configure Africa's Talking inbound callback URL to: `POST /api/v1/sms/callback`
+- Expected payload fields include: `from`, `to`, `text`, `date`, `id`, `linkId`
+- If `AT_WEBHOOK_TOKEN` is configured, send it via `X-AT-Webhook-Token` header (recommended).
+- If no shared secret is used, set `AT_WEBHOOK_ALLOWED_IPS` to Africa's Talking source IPs/CIDRs from their docs (less robust behind proxies unless you trust `X-Forwarded-For`).
+
+### Notification APIs
+
+- `POST /api/v1/notifications/send` sends a message by requested channels while respecting user preferences.
+- `POST /api/v1/notifications/reminders` sends lesson/system reminders with SMS-first fallback: `sms -> email -> push`.
+
+### User preferences
+
+Users can opt channels in/out using these fields on `user_profiles`:
+- `notify_sms`
+- `notify_email`
+- `notify_push`
+- `email` and `push_token` must be set for corresponding channels.
+
+---
 ## 🤝 Contributing
 
 Please read our [Contributing Guidelines](CONTRIBUTING.md) before submitting a pull request.
@@ -85,4 +132,3 @@ This platform is a core component of research into **"Changing farmer behaviours
 
 **License:** MIT  
 **Lead Developer:** kmuwanga83
-```

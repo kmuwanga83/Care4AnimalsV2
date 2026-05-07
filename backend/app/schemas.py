@@ -64,3 +64,15 @@ class TopicResponse(TopicBase):
 
     class Config:
         from_attributes = True
+
+
+class NotificationRequest(BaseModel):
+    user_id: int
+    message: str
+    channels: List[str] = ["sms", "email", "push"]
+
+
+class ReminderRequest(BaseModel):
+    user_id: int
+    reminder_type: str
+    lesson_code: Optional[str] = None

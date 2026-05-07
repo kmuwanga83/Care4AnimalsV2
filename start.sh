@@ -1,20 +1,22 @@
 #!/bin/bash
 
-# 1. Start the Backend
-echo "🚀 Starting FastAPI Backend..."
-cd backend
-# Attempt to activate virtual environment if it exists
-if [ -d "venv" ]; then source venv/Scripts/activate; fi
-if [ -d "env" ]; then source env/Scripts/activate; fi
+set -euo pipefail
 
-# Run uvicorn (using python -m ensures it finds the installed package)
-python -m uvicorn app.main:app --port 8000 --reload & 
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$ROOT_DIR"
 
-# 2. Start the Frontend
-echo "💻 Starting Vite Frontend..."
-cd ../frontend
-# We force port 5173 to keep the 'handshake' consistent
-npm run dev -- --port 5173 &
+echo "🐳 Building and starting services (db, backend, frontend)..."
+docker compose up -d --build db backend frontend
 
-# 3. Wait for processes
-wait
+echo "🌱 Seeding lessons from backend/seed/*.json..."
+docker compose exec backend python seed_db.py
+
+cleanup() {
+  echo ""
+  echo "🛑 Stopping services..."
+  docker compose stop backend frontend >/dev/null 2>&1 || true
+}
+trap cleanup INT TERM
+
+echo "📜 Streaming backend/frontend logs (Ctrl+C to stop)..."
+docker compose logs -f backend frontend

@@ -9,10 +9,24 @@ class Settings(BaseSettings):
     # Frontend/CORS Configuration
     frontend_url: str = "http://localhost:5173"
     
-    # SMS Gateway Configuration (Issue #10)
-    # These will be automatically populated from your .env file
-    at_username: str = "sandbox"  # Default to sandbox for testing
+    # Africa's Talking SMS configuration
+    at_username: str = "sandbox"
     at_api_key: str = "change-me"
+    at_sender_id: str | None = None
+    at_webhook_token: str | None = None
+    # Comma-separated IPs/CIDRs allowed to hit inbound SMS (empty = skip IP check). Prefer token + reverse-proxy truthfulness.
+    at_webhook_allowed_ips: str = ""
+    sms_max_retries: int = 3
+    sms_retry_backoff_seconds: float = 0.5
+
+    # Email configuration (SMTP)
+    email_provider: str = "smtp"
+    smtp_host: str = "localhost"
+    smtp_port: int = 25
+    smtp_username: str | None = None
+    smtp_password: str | None = None
+    smtp_use_tls: bool = False
+    email_from: str = "no-reply@care4animals.local"
     
     # Other Integrations
     rapidpro_secret: str = "change-me"

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
+from sqlalchemy import Boolean, Column, Integer, String, Text, DateTime, ForeignKey
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from .database import Base
@@ -8,7 +8,12 @@ class UserProfile(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     phone_number = Column(String, unique=True, index=True)
+    email = Column(String, nullable=True)
+    push_token = Column(String, nullable=True)
     preferred_language = Column(String, default="en")
+    notify_sms = Column(Boolean, default=True)
+    notify_email = Column(Boolean, default=False)
+    notify_push = Column(Boolean, default=False)
     last_interaction = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     
     # Relationship to track this user's SMS history
@@ -51,6 +56,19 @@ class SMSLog(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     recipient = relationship("UserProfile", back_populates="sms_history")
+
+
+class NotificationLog(Base):
+    __tablename__ = "notification_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("user_profiles.id"), nullable=False)
+    channel = Column(String, nullable=False)  # sms | email | push
+    message_body = Column(Text, nullable=False)
+    status = Column(String, default="pending")
+    error_log = Column(String, nullable=True)
+    provider_message_id = Column(String, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 class Analytics(Base):
     __tablename__ = "analytics"
